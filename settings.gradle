@@ -10,8 +10,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven { url 'https://jitpack.io' }
     }
 }
 rootProject.name = "ShareGloble"
 include ':app'
 include ':tg'
+include ':base'
+include ':shareFun'
