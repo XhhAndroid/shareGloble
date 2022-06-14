@@ -9,6 +9,8 @@ android {
     defaultConfig {
         minSdk 23
         targetSdk 31
+        versionCode project.PHONE_VERSION_CODE.toInteger()
+        versionName project.PHONE_VERSION_NAME
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
@@ -16,8 +18,16 @@ android {
 
     buildTypes {
         release {
+            debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            buildConfigField "String", "VERSION_NAME", "\"" + project.PHONE_VERSION_NAME + "\""
+            buildConfigField "int", "VERSION_CODE", project.PHONE_VERSION_CODE
+        }
+        debug{
+            debuggable true
+            buildConfigField "String", "VERSION_NAME", "\"" + project.PHONE_VERSION_NAME + "\""
+            buildConfigField "int", "VERSION_CODE", project.PHONE_VERSION_CODE
         }
     }
     compileOptions {
