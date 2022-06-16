@@ -7,6 +7,8 @@ import org.drinkless.td.libcore.telegram.TdApi
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
+import java.util.concurrent.locks.Lock
+import java.util.concurrent.locks.ReentrantLock
 
 /**
  *2022/6/13
@@ -15,6 +17,18 @@ import java.io.InputStreamReader
  */
 class UpdateHandler : Client.ResultHandler {
     var client: Client? = null
+    private val authorizationLock: Lock = ReentrantLock()
+    private val gotAuthorization = authorizationLock.newCondition()
+    private var authorizationState: TdApi.AuthorizationState? = null
+
+    @Volatile
+    private var haveAuthorization = false
+
+    @Volatile
+    private var needQuit = false
+
+    @Volatile
+    private var canQuit = false
 
     override fun onResult(obj: TdApi.Object) {
         when (obj.constructor) {
@@ -42,6 +56,9 @@ class UpdateHandler : Client.ResultHandler {
     }
 
     fun onAuthorizationStateUpdated(state: TdApi.AuthorizationState) {
+        if(authorizationState != null){
+            authorizationState = state
+        }
         when (state.constructor) {
             TdApi.AuthorizationStateWaitTdlibParameters.CONSTRUCTOR -> {
                 val parameters = TdApi.TdlibParameters()
@@ -51,7 +68,7 @@ class UpdateHandler : Client.ResultHandler {
                 parameters.apiId = Config.app_id
                 parameters.apiHash = Config.app_hash
                 parameters.systemLanguageCode = "en"
-                parameters.deviceModel = "Desktop"
+                parameters.deviceModel = "Android"
                 parameters.applicationVersion = BuildConfig.VERSION_NAME
                 parameters.enableStorageOptimizer = true
 
@@ -64,8 +81,7 @@ class UpdateHandler : Client.ResultHandler {
                 client!!.send(TdApi.CheckDatabaseEncryptionKey(), AuthorizationRequestHandler());
             }
             TdApi.AuthorizationStateWaitPhoneNumber.CONSTRUCTOR -> {
-                val phoneNumber = "+86-181-2334-2517"
-                client!!.send(TdApi.SetAuthenticationPhoneNumber(phoneNumber, null), AuthorizationRequestHandler());
+                //
             }
             TdApi.AuthorizationStateWaitOtherDeviceConfirmation.CONSTRUCTOR -> {
                 val link = (state as TdApi.AuthorizationStateWaitOtherDeviceConfirmation).link;
@@ -85,29 +101,29 @@ class UpdateHandler : Client.ResultHandler {
                 client!!.send(TdApi.CheckAuthenticationPassword(password), AuthorizationRequestHandler());
             }
             TdApi.AuthorizationStateReady.CONSTRUCTOR -> {
-//                haveAuthorization = true;
-//                authorizationLock.lock();
-//                try {
-//                    gotAuthorization.signal();
-//                } finally {
-//                    authorizationLock.unlock();
-//                }
+                haveAuthorization = true;
+                authorizationLock.lock();
+                try {
+                    gotAuthorization.signal();
+                } finally {
+                    authorizationLock.unlock();
+                }
             }
             TdApi.AuthorizationStateLoggingOut.CONSTRUCTOR -> {
-//                haveAuthorization = false;
+                haveAuthorization = false;
                 print("Logging out");
             }
             TdApi.AuthorizationStateClosing.CONSTRUCTOR -> {
-//                haveAuthorization = false;
+                haveAuthorization = false;
                 print("Closing");
             }
             TdApi.AuthorizationStateClosed.CONSTRUCTOR -> {
                 print("Closed");
-//                if (!needQuit) {
+                if (!needQuit) {
                     client = Client.create(UpdateHandler(), null, null); // recreate client after previous has closed
-//                } else {
-//                    canQuit = true;
-//                }
+                } else {
+                    canQuit = true;
+                }
             }
             else -> {
                 System.err.println("Unsupported authorization state:" + state);
@@ -127,15 +143,17 @@ class UpdateHandler : Client.ResultHandler {
         return str
     }
 
-    private class AuthorizationRequestHandler : Client.ResultHandler {
+    class AuthorizationRequestHandler : Client.ResultHandler {
         override fun onResult(`object`: TdApi.Object) {
             when (`object`.constructor) {
                 TdApi.Error.CONSTRUCTOR -> {
                     System.err.println("Receive an error:" + `object`)
+//                    authorizationState = null
                 }
                 TdApi.Ok.CONSTRUCTOR -> {}
                 else -> System.err.println("Receive wrong response from TDLib:" + `object`)
             }
         }
     }
+
 }
