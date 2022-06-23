@@ -3,9 +3,11 @@ package globle.xhh.sharefun
 import android.os.Handler
 import android.util.Log
 import android.view.ActionMode
+import globle.xhh.sharefun.notification.event.MessageLoadSuccess
 import org.drinkless.td.libcore.telegram.Client
 import org.drinkless.td.libcore.telegram.TdApi
 import org.drinkless.td.libcore.telegram.TdApi.*
+import org.greenrobot.eventbus.EventBus
 import java.util.function.Consumer
 import javax.security.auth.callback.Callback
 
@@ -15,11 +17,11 @@ import javax.security.auth.callback.Callback
  *@author zhangxiaohui
  *@describe
  */
-open class ClientManager private constructor(){
+open class ClientManager private constructor() {
     companion object {
         var instance: ClientManager? = null
-        fun get():ClientManager{
-            if(instance == null){
+        fun get(): ClientManager {
+            if (instance == null) {
                 instance = ClientManager()
             }
             return instance!!
@@ -53,9 +55,23 @@ open class ClientManager private constructor(){
         mClient!!.send(TdApi.CheckAuthenticationCode(code), UpdateHandler.AuthorizationRequestHandler())
     }
 
-    fun getChatList(callBack: Consumer<LongArray>) {
-        mClient!!.send(TdApi.GetChats(ChatListMain(), 100), {
-            callBack.accept((it as Chats).chatIds)
-        })
+    fun getChatList() {
+        mClient!!.send(TdApi.GetChats(ChatListMain(), 100)) {
+            for (chatId in (it as Chats).chatIds) {
+                mClient!!.send(GetChatHistory(chatId, 0, -1, 2, false)) { i ->
+                    if (i != null) {
+                        EventBus.getDefault().post(MessageLoadSuccess(chatId))
+                    }
+                }
+            }
+        }
+    }
+
+    fun getChatMessageFromLocal(chatId: Long,callBack: Consumer<List<Message>>) {
+        mClient!!.send(GetChatHistory(chatId, 0, -1, 2, true)) { i ->
+            if (i != null) {
+                callBack.accept((i as Messages).messages.toList())
+            }
+        }
     }
 }
