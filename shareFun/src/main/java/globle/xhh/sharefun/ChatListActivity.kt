@@ -42,7 +42,8 @@ class ChatListActivity : FragmentActivity() {
             val msg = list.first()
             val msgText = (msg.content as? TdApi.MessageText)?.text?.toString()
             val time = msg.date.toString()
-            val chatEntity = AdapterChatsEntity("", msgText, time)
+            val chat = ClientManager.get().chatMap[message.chatId]
+            val chatEntity = AdapterChatsEntity(chat?.title?:"", msgText, time)
             runOnUiThread {
                 msgAdapter.bindData(false, arrayListOf(chatEntity))
             }

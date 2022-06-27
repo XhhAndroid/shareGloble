@@ -60,8 +60,12 @@ open class ClientManager private constructor() {
             for (chatId in (it as Chats).chatIds) {
                 mClient!!.send(GetChatHistory(chatId, 0, -1, 2, false)) { i ->
                     if (i != null) {
-                        EventBus.getDefault().post(MessageLoadSuccess(chatId))
+//                        EventBus.getDefault().post(MessageLoadSuccess(chatId))
                     }
+                }
+                mClient!!.send(TdApi.GetChat(chatId)) { c ->
+                    chatMap[chatId] = c as Chat
+                    EventBus.getDefault().post(MessageLoadSuccess(chatId))
                 }
             }
         }
@@ -74,4 +78,6 @@ open class ClientManager private constructor() {
             }
         }
     }
+
+    val chatMap : MutableMap<Long,Chat> = mutableMapOf()
 }
